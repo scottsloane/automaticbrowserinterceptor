@@ -1,11 +1,18 @@
+const cla = require("command-line-args");
+const inquirer = require("inquirer");
+
 const CDP = require("chrome-remote-interface");
 const chromeLauncher = require("chrome-launcher");
 const { MongoClient } = require("mongodb");
 
+const axios = require("./node_modules/axios/dist/node/axios.cjs"); // This is needed for pkg to work
+const os = require("os");
+
 const fs = require("fs");
 const crypto = require("crypto");
 
-const config = JSON.parse(fs.readFileSync("config.json", "utf8"));
+const Config = require("./config/index.js");
+
 
 const client = new MongoClient(config.mongo.uri, { useUnifiedTopology: true });
 
@@ -15,14 +22,48 @@ const hash = (data) => {
   return h.digest("hex");
 };
 
-const getProjectFromUrl = (url) => {
-  for (let project of Object.keys(config.Filter)) {
-    if (config.Filter[project].some((x) => url.includes(x))) return project;
-  }
-  return null;
+const checkForUpdates = async () => {
+  const json = (await axios.get(
+    "https://api.github.com/repos/GoogleChrome/chrome-launcher/releases/latest"
+  )).data;
+
+  const version = json.tag_name;
+  console.log(version);
+    
 };
 
+
+
 (async () => {
+
+  const getProjectFromUrl = (url) => {
+    for (let project of Object.keys(config.Filter)) {
+      if (config.Filter[project].some((x) => url.includes(x))) return project;
+    }
+    return null;
+  };
+
+
+  const config = new Config();
+  if (!config.Load()) {
+    console.log("Config file not found, creating one...");
+
+    // TODO: Add a prompt to ask for the mongo uri and db name
+
+    config.Set("mongo", {
+      uri: "mongodb://localhost:27017",
+      db: "chrome",
+    });
+    config.Set("UserDirectory", "./chrome");
+    config.Set("Filter", {
+      "project1": ["project1.com"],
+      "project2": ["project2.com"],
+    });
+    config.Save();
+  }
+
+  await checkForUpdates();
+
   try {
     await client.connect();
   } catch (err) {

@@ -1,68 +1,64 @@
-const cla = require("command-line-args");
-const inquirer = require("inquirer");
-
 const CDP = require("chrome-remote-interface");
 const chromeLauncher = require("chrome-launcher");
 const { MongoClient } = require("mongodb");
-
-const axios = require("./node_modules/axios/dist/node/axios.cjs"); // This is needed for pkg to work
-const os = require("os");
-
-const fs = require("fs");
 const crypto = require("crypto");
+const commandLineArgs = require("command-line-args");
 
 const Config = require("./config/index.js");
+const Intercept = require("./intercept/index.js");
 
+const optionDefinitions = [{ name: "db", type: String, defaultOption: true }];
 
-const client = new MongoClient(config.mongo.uri, { useUnifiedTopology: true });
-
-const hash = (data) => {
-  const h = crypto.createHash("sha256");
-  h.update(data);
-  return h.digest("hex");
-};
-
-const checkForUpdates = async () => {
-  const json = (await axios.get(
-    "https://api.github.com/repos/GoogleChrome/chrome-launcher/releases/latest"
-  )).data;
-
-  const version = json.tag_name;
-  console.log(version);
-    
-};
-
-
+const options = commandLineArgs(optionDefinitions);
 
 (async () => {
-
-  const getProjectFromUrl = (url) => {
-    for (let project of Object.keys(config.Filter)) {
-      if (config.Filter[project].some((x) => url.includes(x))) return project;
-    }
-    return null;
-  };
-
-
   const config = new Config();
-  if (!config.Load()) {
-    console.log("Config file not found, creating one...");
+  if (!config.Load("./config.json")) {
+    console.log("Config file not found");
+    if (options.db) {
+      console.log("Using command line db option");
+      console.log("Attempting to load configuration from database");
 
-    // TODO: Add a prompt to ask for the mongo uri and db name
+      const uclient = new MongoClient(options.db, {
+        useUnifiedTopology: true,
+      });
 
-    config.Set("mongo", {
-      uri: "mongodb://localhost:27017",
-      db: "chrome",
+      await uclient.connect();
+
+      let doc = await uclient.db("abi").collection("config").findOne({});
+      if (!doc) {
+        console.log("No configuration found in database");
+        process.exit(1);
+      }
+
+      config.Load(doc);
+      config.Save();
+    } else {
+      console.log("Please create a config.json file");
+      console.log("or pass a database connection string with the --db option");
+      process.exit(1);
+    }
+  } else {
+    console.log("Updating configuration from database");
+    const uclient = new MongoClient(config.Get("mongo").uri, {
+      useUnifiedTopology: true,
     });
-    config.Set("UserDirectory", "./chrome");
-    config.Set("Filter", {
-      "project1": ["project1.com"],
-      "project2": ["project2.com"],
-    });
+
+    await uclient.connect();
+
+    let doc = await uclient.db("abi").collection("config").findOne({});
+    if (!doc) {
+      console.log("No configuration found in database");
+      process.exit(1);
+    }
+
+    config.Load(doc);
     config.Save();
   }
 
-  await checkForUpdates();
+  const client = new MongoClient(config.Get("mongo").uri, {
+    useUnifiedTopology: true,
+  });
 
   try {
     await client.connect();
@@ -71,12 +67,12 @@ const checkForUpdates = async () => {
     process.exit(1);
   }
 
-  const db = client.db(config.mongo.db);
+  const db = client.db(config.Get("mongo").db);
 
   const chrome = await chromeLauncher.launch({
     chromeFlags: [
       "--window-size=1200,800",
-      `--user-data-dir=${config.UserDirectory}`,
+      `--user-data-dir=${config.Get("UserDirectory")}`,
       // "--auto-open-devtools-for-tabs",
     ],
   });
@@ -88,93 +84,36 @@ const checkForUpdates = async () => {
     }, 1000);
   });
 
-  const Requests = {};
-
-  const Stats = {
-    Loaded: 0,
-    Filtered: 0,
-    Saved: 0,
-    Skipped: 0,
-  };
-
   CDP({ port: chrome.port }, async function (client) {
     try {
-      const { Network, Page } = client;
+      const intercept = new Intercept();
+      intercept.Attatch(client, config, db);
 
-      await Network.enable();
+      const { Page, Target } = client;
+
+      Target.on("targetCreated", async (params) => {
+        if (params.targetInfo.type != "page") {
+          return;
+        }
+
+        const {targetId} = params.targetInfo;
+        const findTarget = (targets) => {
+          return targets.find((target) => target.id === targetId);
+        };
+
+        CDP({ target: findTarget, port: chrome.port }, async function (newclient) {
+          let newIntercept = new Intercept();
+          newIntercept.Attatch(newclient, config, db);
+        });
+
+      });
+
+      await Target.setDiscoverTargets({ discover: true });
       await Page.enable();
-
-      // Intercept and log all network requests
-      Network.requestWillBeSent((params) => {
-        // This just got complicated
-        let project = getProjectFromUrl(params.request.url);
-        if (project) {
-          console.log(params.request.url, project)
-          Requests[params.requestId] = {
-            project: project,
-            request: params,
-          };
-        } else {
-          Stats.Filtered++;
-        }
-      });
-
-      // Save response data for all network requests
-      Network.on("responseReceived", async (params) => {
-        Stats.Loaded++;
-        if (Requests[params.requestId])
-          Requests[params.requestId].response = params;
-      });
-
-      Network.on("loadingFinished", async (params) => {
-        if (Requests[params.requestId]) {
-          // console.log("Loading finished:", params.requestId);
-          const response = await Network.getResponseBody({
-            requestId: params.requestId,
-          }).catch((err) => console.log(err));
-          if (response && response.body) {
-            // console.log("Response body:", response.body.length);
-            let doc = {
-              url: Requests[params.requestId].request.request.url,
-              body: response.body,
-              headers: {
-                request: Requests[params.requestId].request.request.headers,
-                response: Requests[params.requestId].response.response.headers,
-              },
-            };
-            if (Requests[params.requestId].request.request.hasPostData)
-              doc.postData =
-                Requests[params.requestId].request.request.postData;
-            doc.hash = hash(
-              JSON.stringify({
-                url: doc.url,
-                body: doc.body,
-                postData: doc.postData,
-              })
-            );
-            // console.log(doc);
-            let found = await db
-              .collection(Requests[params.requestId].project)
-              .findOne({
-                hash: doc.hash,
-              });
-            if (!found) {
-              Stats.Saved++;
-              await db
-                .collection(Requests[params.requestId].project)
-                .insertOne(doc);
-            } else {
-              Stats.Skipped++;
-            }
-            delete Requests[params.requestId];
-            console.log(Stats);
-          }
-        }
-      });
 
       // Navigate to a URL
       await Page.navigate({
-        url: "https://www.carrierenterprise.com/product/1104245627571201",
+        url: "https://www.carrierenterprise.com/",
       });
 
       // Page.on("frameNavigated", async (params) => {
@@ -182,7 +121,7 @@ const checkForUpdates = async () => {
       // })
 
       // Page.on("loadEventFired", () => {
-        // console.log("Page loaded!");
+      // console.log("Page loaded!");
       // });
     } catch (err) {
       console.error(err);

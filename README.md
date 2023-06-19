@@ -32,6 +32,7 @@ Configuration is done in a config.json file.
 - Add prompt and config dialogs
 - Add download config from mongo
 - Build for x86 platforms
+- Remove filter from config and load from db every time (or just force an update every time?)
 
 ```json
 {

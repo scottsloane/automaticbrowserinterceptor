@@ -1,29 +1,37 @@
-const fs = require('fs');
+const fs = require("fs");
 
 class Config {
-
   constructor() {
-    this.config = {}
+    this.config = {};
   }
 
-  Load() {
-    if(!fs.existsSync('./config.json')) return false;
-    try {
-      this.config = require('./config.json');
-    }catch(e) {
-      return false;
+  Load(path) {
+    if (typeof path === "string") {
+      if (!fs.existsSync(path)) return false;
+      try {
+        this.config = JSON.parse(fs.readFileSync(path));
+      } catch (e) {
+        console.log(e);
+        process.exit(1);
+      }
+      return true;
+    }else if(typeof path === "object") {
+      this.config = path;
+      return true;
     }
-    return true;
   }
 
   Set(key, value) {
     this.config[key] = value;
   }
 
-  Save() {
-    fs.writeFileSync('./config.json', JSON.stringify(this.config, null, 2));
+  Get(key) {
+    return this.config[key];
   }
 
+  Save() {
+    fs.writeFileSync("./config.json", JSON.stringify(this.config, null, 2));
+  }
 }
 
 module.exports = Config;

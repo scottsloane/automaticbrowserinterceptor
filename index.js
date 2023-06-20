@@ -1,7 +1,6 @@
 const CDP = require("chrome-remote-interface");
 const chromeLauncher = require("chrome-launcher");
 const { MongoClient } = require("mongodb");
-const crypto = require("crypto");
 const commandLineArgs = require("command-line-args");
 
 const Config = require("./config/index.js");
@@ -115,7 +114,7 @@ const options = commandLineArgs(optionDefinitions);
 
       // Navigate to a URL
       await Page.navigate({
-        url: "https://www.carrierenterprise.com/",
+        url: config.Get("page"),
       });
     } catch (err) {
       console.error(err);

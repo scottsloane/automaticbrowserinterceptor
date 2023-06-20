@@ -33,15 +33,3 @@ The remote config stored in the database can be updated with the local config by
 node update.js
 ```
 
-## TODO
-
-- Add auto-update (Testing)
-- Add download config from mongo (Testing)
-- Build for x86 platforms
-- Remove filter from config and load from db every time (or just force an update every time?) (testing)
-
-```json
-{
-  "Filter": [{ "projectName": ["url1", "url2"] }]
-}
-```

@@ -1,13 +1,31 @@
-const axios = require("./node_modules/axios/dist/node/axios.cjs"); // This is needed for pkg to work
-const os = require("os");
+const { MongoClient, ObjectId } = require("mongodb");
+const Config = require("./config/index.js");
 
-(async() => {
-    console.log(os.platform(),os.arch())
-    
-    const json = (await axios.get(
-      "https://api.github.com/repos/GoogleChrome/chrome-launcher/releases/latest"
-    )).data;
-
-    const version = json.tag_name;
-    console.log(version);
-})()
+(async () => {
+  const config = new Config();
+  if (!config.Load("./config.json")) {
+    console.log("Config file not found");
+    process.exit(1);
+  } else {
+    const client = new MongoClient(config.Get("mongo").uri, {
+      useUnifiedTopology: true,
+    });
+    try {
+      await client.connect();
+      const db = client.db("abi");
+      const collection = db.collection("config");
+      let doc = await collection.findOne({});
+      if (!doc) {
+        await collection.insertOne(config.Get());
+      } else {
+        let newdoc = config.Get();
+        newdoc._id = doc._id;
+        await collection.replaceOne({}, config.Get());
+      }
+    } catch (err) {
+      console.log(err);
+      process.exit(1);
+    }
+    process.exit(0);
+  }
+})();

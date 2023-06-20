@@ -96,16 +96,18 @@ const options = commandLineArgs(optionDefinitions);
           return;
         }
 
-        const {targetId} = params.targetInfo;
+        const { targetId } = params.targetInfo;
         const findTarget = (targets) => {
           return targets.find((target) => target.id === targetId);
         };
 
-        CDP({ target: findTarget, port: chrome.port }, async function (newclient) {
-          let newIntercept = new Intercept();
-          newIntercept.Attatch(newclient, config, db);
-        });
-
+        CDP(
+          { target: findTarget, port: chrome.port },
+          async function (newclient) {
+            let newIntercept = new Intercept();
+            newIntercept.Attatch(newclient, config, db);
+          }
+        );
       });
 
       await Target.setDiscoverTargets({ discover: true });
@@ -115,14 +117,6 @@ const options = commandLineArgs(optionDefinitions);
       await Page.navigate({
         url: "https://www.carrierenterprise.com/",
       });
-
-      // Page.on("frameNavigated", async (params) => {
-      //   console.log("Navigated to:", params.frame.url);
-      // })
-
-      // Page.on("loadEventFired", () => {
-      // console.log("Page loaded!");
-      // });
     } catch (err) {
       console.error(err);
     }

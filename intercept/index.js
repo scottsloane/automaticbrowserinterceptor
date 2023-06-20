@@ -8,14 +8,14 @@ const hash = (data) => {
 
 class Intercept {
   constructor() {
-      this.Requests = {};
+    this.Requests = {};
 
-      this.Stats = {
-        Loaded: 0,
-        Filtered: 0,
-        Saved: 0,
-        Skipped: 0,
-      };
+    this.Stats = {
+      Loaded: 0,
+      Filtered: 0,
+      Saved: 0,
+      Skipped: 0,
+    };
   }
 
   async Attatch(client, config, db) {
@@ -67,11 +67,13 @@ class Intercept {
             body: response.body,
             headers: {
               request: this.Requests[params.requestId].request.request.headers,
-              response: this.Requests[params.requestId].response.response.headers,
+              response:
+                this.Requests[params.requestId].response.response.headers,
             },
           };
           if (this.Requests[params.requestId].request.request.hasPostData)
-            doc.postData = this.Requests[params.requestId].request.request.postData;
+            doc.postData =
+              this.Requests[params.requestId].request.request.postData;
           doc.hash = hash(
             JSON.stringify({
               url: doc.url,

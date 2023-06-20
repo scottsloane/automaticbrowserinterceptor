@@ -15,7 +15,7 @@ class Config {
         process.exit(1);
       }
       return true;
-    }else if(typeof path === "object") {
+    } else if (typeof path === "object") {
       this.config = path;
       return true;
     }
@@ -26,6 +26,7 @@ class Config {
   }
 
   Get(key) {
+    if(!key)  return this.config;
     return this.config[key];
   }
 

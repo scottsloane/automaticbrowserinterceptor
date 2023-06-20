@@ -4,3 +4,5 @@ config.json
 
 automaticbrowserinterceptor-*
 update-*
+
+.DS_Store

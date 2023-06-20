@@ -25,14 +25,20 @@ Configuration is done in a config.json file.
 
 **Filter**: An array of url matches
 
+## Updating Config
+
+The remote config stored in the database can be updated with the local config by using the update script.
+
+```
+node update.js
+```
+
 ## TODO
 
-- Add auto-update
-- Add CLI paramiters
-- Add prompt and config dialogs
-- Add download config from mongo
+- Add auto-update (Testing)
+- Add download config from mongo (Testing)
 - Build for x86 platforms
-- Remove filter from config and load from db every time (or just force an update every time?)
+- Remove filter from config and load from db every time (or just force an update every time?) (testing)
 
 ```json
 {

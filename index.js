@@ -73,7 +73,7 @@ const options = commandLineArgs(optionDefinitions);
   const chrome = await chromeLauncher.launch({
     chromeFlags: [
       "--window-size=1200,800",
-      `--user-data-dir=${path.join(process.cwd(), config.Get("UserDirectory"))}`,
+      `--user-data-dir="${path.join(process.cwd(), config.Get("UserDirectory"))}"`,
       // "--auto-open-devtools-for-tabs",
     ],
   });

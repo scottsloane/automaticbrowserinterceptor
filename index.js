@@ -2,6 +2,8 @@ const CDP = require("chrome-remote-interface");
 const chromeLauncher = require("chrome-launcher");
 const { MongoClient } = require("mongodb");
 const commandLineArgs = require("command-line-args");
+const publicIp = require("./publicip");
+const os = require("os");
 
 const path = require("path");
 
@@ -57,6 +59,11 @@ const options = commandLineArgs(optionDefinitions);
     config.Save();
   }
 
+  const ip = await publicIp();
+  config.Set("ip", ip);
+  const username = os.userInfo().username;
+  config.Set("username", username);
+
   const client = new MongoClient(config.Get("mongo").uri, {
     useUnifiedTopology: true,
   });
@@ -73,7 +80,10 @@ const options = commandLineArgs(optionDefinitions);
   const chrome = await chromeLauncher.launch({
     chromeFlags: [
       "--window-size=1200,800",
-      `--user-data-dir="${path.join(process.cwd(), config.Get("UserDirectory"))}"`,
+      `--user-data-dir=${path.join(
+        process.cwd(),
+        config.Get("UserDirectory")
+      )}`,
       // "--auto-open-devtools-for-tabs",
     ],
   });

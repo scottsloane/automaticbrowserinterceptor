@@ -81,6 +81,11 @@ class Intercept {
               postData: doc.postData,
             })
           );
+          // Add meta data to doc
+          doc.timestamp = Date.now();
+          doc.ip = config.Get("ip");
+          doc.username = config.Get("username");
+
           // console.log(doc);
           let found = await db
             .collection(this.Requests[params.requestId].project)

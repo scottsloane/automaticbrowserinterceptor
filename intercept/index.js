@@ -100,9 +100,9 @@ class Intercept {
           } else {
             this.Stats.Skipped++;
           }
-          delete this.Requests[params.requestId];
           console.log(this.Stats);
         }
+        delete this.Requests[params.requestId];
       }
     });
   }

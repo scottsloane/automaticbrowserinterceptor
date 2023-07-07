@@ -7,7 +7,11 @@ class Config {
 
   Load(path) {
     if (typeof path === "string") {
-      if (!fs.existsSync(path)) return false;
+      console.log("Loading config from file:", path)
+      console.log(process.cwd())
+      if (!fs.existsSync(path)) {
+        console.log("Config file path not found");
+        return false};
       try {
         this.config = JSON.parse(fs.readFileSync(path));
       } catch (e) {
